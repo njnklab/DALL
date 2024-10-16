@@ -1,8 +1,12 @@
 import numpy as np
 import pandas as pd
 import networkx as nx
-from sklearn.covariance import GraphicalLasso
+from sklearn.covariance import GraphicalLasso, GraphicalLassoCV
+import community.community_louvain as louvain
 import random
+import itertools
+from scipy import stats
+import datetime
 
 def construct_network(data, columns):
     # 使用Graphical Lasso构建逆协方差矩阵
@@ -22,29 +26,33 @@ def construct_network(data, columns):
 
     return G
 
-def approximate_mds(G, max_samples=1000):
-    """
-    使用启发式方法近似找到最小支配集合（MDSet）。
-    max_samples 控制采样的次数。
-    """
-    nodes = list(G.nodes())
-    mds_sets = []
+def greedy_minimum_dominating_set(nxG, times):
+    min_dominating_set = []
 
-    for _ in range(max_samples):
-        remaining_nodes = set(nodes)
-        mds = set()
-        while remaining_nodes:
-            # 随机选择一个节点作为控制节点
-            node = random.choice(list(remaining_nodes))
-            mds.add(node)
-            # 移除该节点及其邻居节点（因为它们已被支配）
-            neighbors = set(G.neighbors(node))
-            remaining_nodes -= neighbors
-            remaining_nodes.discard(node)
+    for time in range(times):
+        nxG_copy = nxG.copy()
+        dominating_set = []
 
-        mds_sets.append(mds)
+        while nxG_copy.nodes():
+            node = random.choice(list(nxG_copy.nodes()))
+            dominating_set.append(node)
+            remove_list = [node] + list(nxG_copy.neighbors(node))
 
-    return mds_sets
+            for node in remove_list:
+                nxG_copy.remove_node(node)
+
+        dominating_set = set(dominating_set)
+        if len(min_dominating_set) == 0:
+            min_dominating_set.append(dominating_set)
+        elif len(min_dominating_set[0]) == len(dominating_set) and dominating_set not in min_dominating_set:
+            min_dominating_set.append(dominating_set)
+        elif len(min_dominating_set[0]) > len(dominating_set):
+            min_dominating_set.clear()
+            min_dominating_set.append(dominating_set)
+
+        print(f"times: {time + 1} MDSet size: {len(min_dominating_set[0])} MDSet number: {len(min_dominating_set)} MDSet: {min_dominating_set}")
+
+    return min_dominating_set
 
 def calculate_control_frequency(G, mds_sets):
     cf = {node: 0 for node in G.nodes()}
@@ -57,6 +65,39 @@ def calculate_control_frequency(G, mds_sets):
     cf = {node: freq / total_mds_sets for node, freq in cf.items()}  # 归一化CF
 
     return cf
+
+def module_controllability(nxG, all_dom_set, louvain_communities):
+    number_of_communities = max(louvain_communities.values()) + 1
+    print(f"module number: {number_of_communities}")
+
+    module = {i: [] for i in range(number_of_communities)}
+    for node, community_index in louvain_communities.items():
+        module[community_index].append(node)
+
+    for i in range(number_of_communities):
+        print(f"module {i} has {len(module[i])} nodes")
+
+    average_module_controllability_result = {f"{source}_{target}": 0 for source in module for target in module}
+
+    for min_dom_set in all_dom_set:
+        dominated_area = {dom_node: set(nxG.neighbors(dom_node)).union({dom_node}) for dom_node in min_dom_set}
+
+        modules_control_area = {module_index: set().union(*(dominated_area[node] for node in node_in_module if node in min_dom_set)) 
+                                for module_index, node_in_module in module.items()}
+
+        temp_module_controllability_result = {}
+        for module_source, control_area in modules_control_area.items():
+            for module_target, target_module_area in module.items():
+                inter = control_area.intersection(set(target_module_area))
+                controllability = len(inter) / len(target_module_area)
+                temp_module_controllability_result[f"{module_source}_{module_target}"] = controllability
+                average_module_controllability_result[f"{module_source}_{module_target}"] += controllability
+
+        print(f"dom_set: {min_dom_set} module_controllability: {temp_module_controllability_result}")
+
+    average_module_controllability_result = {k: v / len(all_dom_set) for k, v in average_module_controllability_result.items()}
+    print(f"average_module_controllability: {average_module_controllability_result}")
+    return average_module_controllability_result
 
 def identify_arm_nodes(G, cf):
     """
@@ -83,7 +124,7 @@ def main(data):
     G = construct_network(data_values, columns)
 
     # 步骤2: 近似计算最小支配集合（MDSets）
-    mds_sets = approximate_mds(G, max_samples=100000)
+    mds_sets = greedy_minimum_dominating_set(G, times=1000)
 
     # 步骤3: 计算控制频率（CF）
     control_frequency = calculate_control_frequency(G, mds_sets)
@@ -91,11 +132,19 @@ def main(data):
     # 步骤4: 识别ARM模块的节点及其CF
     arm_cf = identify_arm_nodes(G, control_frequency)
 
-    # 输出ARM节点及其CF
+    # 计算模块可控性
+    louvain_communities = louvain.best_partition(G)
+    average_module_controllability = module_controllability(G, mds_sets, louvain_communities)
+
+    # 输出结果
     print("ARM节点及其CF:")
     for node, cf in arm_cf.items():
         print(f"{node}: {cf:.3f}")
 
+    print("平均模块可控性:")
+    for key, value in average_module_controllability.items():
+        print(f"{key}: {value:.3f}")
+
 if __name__ == "__main__":
-    data = pd.read_csv('/home/user/xuxiao/Anxiety/dataset/CS-NRAC/scale.csv').drop(columns=['cust_id'])
+    data = pd.read_csv('/home/user/xuxiao/DALL/dataset/CS-NRAC/scale.csv').drop(columns=['cust_id'])
     main(data)
