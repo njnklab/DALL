@@ -160,7 +160,7 @@ kf = KFold(n_splits=5, shuffle=True, random_state=42)
 # 训练和评估多任务模型
 results_tasks = []
 multi_models = {
-    # 'MultiRF': multi_rf,
+    'MultiRF': multi_rf,
     'MultiSVR': multi_svm,
     'MultiLR': multi_lr
 }
@@ -203,20 +203,17 @@ for name, model in multi_models.items():
         print(f"MAE: {mae.mean():.4f}")
         print(f"R2: {r2.mean():.4f}")
         
+        # 保存结果
+        results_tasks.append({
+            'Model': name,
+            'RMSE': rmse.mean(),
+            'MAE': mae.mean(),
+            'R2': r2.mean()
+        })
+        
     except Exception as e:
         print(f"训练 {name} 模型时发生错误: {str(e)}")
-        continue  # 继续下一个模型
-    
-    # 保存结果
-    results_tasks.append({
-        'Model': name,
-        'RMSE': rmse.mean(),
-        'MAE': mae.mean()
-    })
-    
-    # 保存各题目得分的预测结果
-    best_model.fit(X_pca, y_tasks)
-    data[f'y_pred_{name}'] = best_model.predict(X_pca)
+        continue
 
 # 展示多任务模型性能
 results_tasks_df = pd.DataFrame(results_tasks)
@@ -260,7 +257,7 @@ for name, model in total_models.items():
         'MAE': mae
     })
     
-    # 绘制预测值 vs ���际值散点图
+    # 绘制预测值 vs 际值散点图
     plt.figure(figsize=(6, 6))
     plt.scatter(y_total, y_pred_total, alpha=0.5, edgecolors='k', linewidth=0.5)
     plt.plot([y_total.min(), y_total.max()], [y_total.min(), y_total.max()], 'r--', linewidth=2)

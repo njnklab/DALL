@@ -99,24 +99,38 @@ def module_controllability(nxG, all_dom_set, louvain_communities):
     print(f"average_module_controllability: {average_module_controllability_result}")
     return average_module_controllability_result
 
-def identify_arm_nodes(G, cf):
+def get_scale_columns(scale_type):
     """
-    识别与焦虑相关的模块（ARM）中的节点。
-    通过分析与GAD相关的节点及其邻居节点。
+    获取不同量表的列名
     """
-    gad_nodes = [node for node in G.nodes() if 'gad' in node]  # 假设GAD量表的节点名称包含"GAD"
-    arm_nodes = set(gad_nodes)
-    
-    for node in gad_nodes:
-        arm_nodes.update(G.neighbors(node))  # 包含所有与GAD节点直接相连的节点
-    
-    # 输出ARM节点及其CF
-    arm_cf = {node: cf[node] for node in arm_nodes}
+    scale_prefixes = {
+        'ISI': ['ISI'],
+        'GAD': ['GAD'],
+        'PHQ': ['PHQ'],
+        'PSS': ['PSS'],
+        'ALL': ['ISI', 'GAD', 'PHQ', 'PSS']  # 包含所有量表
+    }
+    return scale_prefixes[scale_type]
 
+def identify_arm_nodes(G, cf, scale_type='ALL'):
+    """
+    仅在处理所有量表时识别以PHQ为中心的arm nodes
+    """
+    if scale_type == 'ALL':
+        # 只在处理所有量表时，找出PHQ节点及其邻居
+        phq_nodes = [node for node in G.nodes() if 'PHQ' in node]
+        arm_nodes = set(phq_nodes)
+        for node in phq_nodes:
+            arm_nodes.update(G.neighbors(node))
+        arm_cf = {node: cf[node] for node in arm_nodes}
+    else:
+        # 对于单个量表，返回所有节点的CF
+        arm_cf = cf
+    
     return arm_cf
 
 # 示例主程序
-def main(data):
+def main(data, scale_type):
     columns = data.columns
     data_values = data.values
     
@@ -129,15 +143,18 @@ def main(data):
     # 步骤3: 计算控制频率（CF）
     control_frequency = calculate_control_frequency(G, mds_sets)
 
-    # 步骤4: 识别ARM模块的节点及其CF
-    arm_cf = identify_arm_nodes(G, control_frequency)
+    # 步骤4: 根据scale_type决定是否需要识别arm nodes
+    arm_cf = identify_arm_nodes(G, control_frequency, scale_type)
 
     # 计算模块可控性
     louvain_communities = louvain.best_partition(G)
     average_module_controllability = module_controllability(G, mds_sets, louvain_communities)
 
     # 输出结果
-    print("ARM节点及其CF:")
+    if scale_type == 'ALL':
+        print("PHQ相关节点及其CF:")
+    else:
+        print(f"{scale_type}量表节点及其CF:")
     for node, cf in arm_cf.items():
         print(f"{node}: {cf:.3f}")
 
@@ -145,6 +162,30 @@ def main(data):
     for key, value in average_module_controllability.items():
         print(f"{key}: {value:.3f}")
 
+    # 修改返回值，同时返回arm_cf和average_module_controllability
+    return arm_cf, average_module_controllability
+
 if __name__ == "__main__":
-    data = pd.read_csv('/home/user/xuxiao/DALL/dataset/CS-NRAC/scale.csv').drop(columns=['cust_id'])
-    main(data)
+    scale_types = ['ISI', 'GAD', 'PHQ', 'PSS', 'ALL']
+    data_path = '/home/user/xuxiao/DALL/dataset/CS-NRAC/scales.csv'
+    
+    all_results = {}  # 存储所有量表的CF结果
+    
+    for scale_type in scale_types:
+        print(f"\n=== 分析 {scale_type} 量表 ===")
+        df = pd.read_csv(data_path)
+        prefixes = get_scale_columns(scale_type)
+        
+        selected_cols = ['cust_id'] + [col for col in df.columns if any(col.startswith(prefix) for prefix in prefixes)]
+        df_scale = df[selected_cols].drop(columns=['cust_id'])
+        
+        # 收集每个量表的结果
+        cf_results, module_results = main(df_scale, scale_type)
+        all_results[scale_type] = cf_results
+
+    # 最后统一打印所有CF值
+    print("\n=== 所有量表的CF值 ===")
+    for scale_type, cf_dict in all_results.items():
+        print(f"\n{scale_type}量表:")
+        for node, cf in cf_dict.items():
+            print(f"{node}: {cf:.3f}")
