@@ -102,9 +102,9 @@ def module_controllability(nxG, all_dom_set, louvain_communities):
 def identify_arm_nodes(G, cf):
     """
     识别与焦虑相关的模块（ARM）中的节点。
-    通过分析与GAD相关的节点及其邻居节点。
+    通过分析与PHQ相关的节点及其邻居节点。
     """
-    gad_nodes = [node for node in G.nodes() if 'gad' in node]  # 假设GAD量表的节点名称包含"GAD"
+    gad_nodes = [node for node in G.nodes() if 'PHQ' in node]  # 假设GAD量表的节点名称包含"GAD"
     arm_nodes = set(gad_nodes)
     
     for node in gad_nodes:
