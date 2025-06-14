@@ -1,7 +1,7 @@
 **[English](README.md)** | **[中文](README_CN.md)**
 
 # DALL
-Dual-Layer Learner Reveals Mechanisms of Problem-Level Correlation Between Speech and Depression Scales
+Dual-Layer Learner
 
 <p align="center">
   <img src="https://github.com/xuxiaoooo/FACES/blob/main/draw/LOGO 1.png" width="300" height="180" alt="logo"/>
