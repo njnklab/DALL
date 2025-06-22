@@ -11,8 +11,6 @@ Dual-Layer Learner
 
 ## 🎙️ Backbone Flow
 
-<img src="https://github.com/njnklab/DALL/blob/main/draw/fig1.jpg" width="800" height="400" alt="Backbone Flow"/>
-
 ---
 
 ## 📌 Introduction
