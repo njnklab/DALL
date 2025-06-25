@@ -11,8 +11,6 @@ Dual-Layer Learner
 
 ## 🎙️ Link
 
-<href src="https://njnklab.github.io/DALL.github.io/">
-
 
 ---
 
