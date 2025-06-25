@@ -1,4 +1,4 @@
-**[English](README.md)** | **[中文](README_CN.md)**
+**[English](README.md)**
 
 # DALL
 Dual-Layer Learner
@@ -7,14 +7,11 @@ Dual-Layer Learner
   <img src="https://github.com/njnklab/FACES/blob/main/draw/LOGO 1.png" width="300" height="180" alt="logo"/>
 </p>
 
----
+--
 
-## 🎙️ Backbone Flow
+## 🎙️ Link
 
----
-
-## 📌 Introduction
-
+<href src="https://njnklab.github.io/DALL.github.io/">
 
 
 ---
